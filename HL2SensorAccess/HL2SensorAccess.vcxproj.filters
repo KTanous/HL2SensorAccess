@@ -14,6 +14,9 @@
     <ClCompile Include="DepthSensorPointCloud.cpp" />
     <ClCompile Include="pch.cpp" />
     <ClCompile Include="ShortThrowDepthCameraReader.cpp" />
+    <ClCompile Include="TimeConverter.cpp">
+      <Filter>Utils</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DepthSensorFrame.h" />
@@ -21,5 +24,8 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="ResearchModeApi.h" />
     <ClInclude Include="ShortThrowDepthCameraReader.h" />
+    <ClInclude Include="TimeConverter.h">
+      <Filter>Utils</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

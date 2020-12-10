@@ -7,12 +7,17 @@
 //*********************************************************
 
 #pragma once
+#include <DirectXMath.h>
 #include "ResearchModeApi.h"
 
 
 namespace HL2SensorAccess
 {
-    static constexpr uint16 AHAT_INVALID_VALUE = 4090;
+    static constexpr UINT16 AHAT_INVALID_VALUE = 4090;
+    enum InvalidationMasks
+    {
+        Invalid = 0x80,
+    };
     public ref class DepthSensorFrame sealed
     {
     public:
@@ -32,17 +37,12 @@ namespace HL2SensorAccess
         //property Windows::Media::Devices::Core::CameraIntrinsics^ CoreCameraIntrinsics;
         //property CameraIntrinsics^ SensorStreamingCameraIntrinsics;
 
-        // Frame coordinate system
-        // https://github.com/chrisfromwork/HoloLensForCV/commit/269d64c4e6bd500cac5c12bd199ea7fde7dc4602
-        property Windows::Foundation::Numerics::float4x4 FrameToWorldTransform;
         //property Windows::Perception::Spatial::SpatialCoordinateSystem^ FrameCoordinateSystem;
 
         //property Windows::Foundation::Numerics::float4x4 FrameToOrigin;
         //property Windows::Foundation::Numerics::float4x4 CameraViewTransform;
         //property Windows::Foundation::Numerics::float4x4 CameraProjectionTransform;
 
-        //Array<UINT16>^ GetPixelData();
-
-    private:
+        property Windows::Foundation::Numerics::float4x4 FrameToWorldTransform;
     };
 }

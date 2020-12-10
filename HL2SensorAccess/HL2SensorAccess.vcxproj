@@ -42,6 +42,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">Create</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="ShortThrowDepthCameraReader.cpp" />
+    <ClCompile Include="TimeConverter.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DepthSensorFrame.h" />
@@ -49,6 +50,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="ResearchModeApi.h" />
     <ClInclude Include="ShortThrowDepthCameraReader.h" />
+    <ClInclude Include="TimeConverter.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{502d301a-58e1-48c4-a945-1ba0bb24036e}</ProjectGuid>
@@ -233,6 +235,7 @@
       <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <DisableSpecificWarnings>28204</DisableSpecificWarnings>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
