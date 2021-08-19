@@ -12,15 +12,31 @@ static HANDLE frameObtained;
 
 namespace HL2SensorAccess
 {
-	ShortThrowDepthCameraReader::ShortThrowDepthCameraReader() {
-		//OutputDebugString(L"Initializing camera reader...");
-		InitializeDepthSensor();
+	ShortThrowDepthCameraReader::ShortThrowDepthCameraReader(int minDistanceToBorder, int adaptiveThreshWinSizeMax,
+		int adaptiveThreshWinSizeMin, int adaptiveThreshWinSizeStep) {
+		OutputDebugString(L"Initializing camera readers...\n");
+		InitializeDepthSensorAndFrontCams();
+		OutputDebugString(L"Complete.\n");
 		GUID guid;
 		GetRigNodeId(guid);
 		SetLocator(guid);
 		//m_pLocator = Windows::Perception::Spatial::SpatialLocator::GetDefault();
 		m_pFrameOfReference = m_pLocator.CreateStationaryFrameOfReferenceAtCurrentLocation();
 		//m_pFrameOfReference = m_pLocator->CreateAttachedFrameOfReferenceAtCurrentHeading();
+
+		// Initialize parameters for aruco detection
+		m_pDetectorParams = cv::aruco::DetectorParameters::create();
+		/*
+		m_pDetectorParams->minDistanceToBorder = 0;
+		m_pDetectorParams->adaptiveThreshWinSizeMin = 10;
+		m_pDetectorParams->adaptiveThreshWinSizeMax = 60;
+		m_pDetectorParams->adaptiveThreshWinSizeStep = 5;
+		*/
+
+		m_pDetectorParams->minDistanceToBorder = minDistanceToBorder;
+		m_pDetectorParams->adaptiveThreshWinSizeMin = adaptiveThreshWinSizeMin;
+		m_pDetectorParams->adaptiveThreshWinSizeMax = adaptiveThreshWinSizeMax;
+		m_pDetectorParams->adaptiveThreshWinSizeStep = adaptiveThreshWinSizeStep;
 	}
 
 	Windows::Foundation::Numerics::float4 vecDotM(
@@ -58,140 +74,7 @@ namespace HL2SensorAccess
 		return to;
 	}
 
-	/*
-	void ShortThrowDepthCameraReader::CameraUpdateThread(ShortThrowDepthCameraReader^ handle) {
-		handle->m_pAHATSensor->OpenStream();
-		while (!handle->m_pExitUpdateThread) {
-			IResearchModeSensorFrame* pSensorFrame = nullptr;
-			HRESULT hr = S_OK;
-			hr = handle->m_pAHATSensor->GetNextBuffer(&pSensorFrame);
-
-			// Update frame if new one available otherwise set to nullptr
-			//OutputDebugString(L"Checking buffer status...");
-			if (SUCCEEDED(hr)) {
-				std::lock_guard<std::mutex> guard(handle->m_sensorFrameMutex);
-				if (handle->m_pSensorFrame) {
-					handle->m_pSensorFrame->Release();
-				}
-				handle->m_pSensorFrame = pSensorFrame;
-			}
-			else {
-				handle->m_pSensorFrame = nullptr;
-			}
-
-			if (!handle->m_pResolutionKnown) {
-
-				// Build DepthSensorFrame object and return it
-				ResearchModeSensorResolution resolution;
-				{
-					std::lock_guard<std::mutex> guard(handle->m_sensorFrameMutex);
-					// Assuming we are at the end of the capture
-					winrt::check_hresult(handle->m_pSensorFrame->GetResolution(&resolution));
-				}
-
-				handle->m_pResolution = resolution;
-				handle->m_pResolutionKnown = true;
-				//OutputDebugString(L"Resolution initialized.\n");
-			}
-
-			IResearchModeSensorDepthFrame* pDepthFrame;
-			const UINT16* pDepth = nullptr;
-			size_t outDepthBufferCount = 0;
-			handle->m_pSensorFrame->QueryInterface(IID_PPV_ARGS(&pDepthFrame));
-			pDepthFrame->GetBuffer(&pDepth, &outDepthBufferCount);
-
-			// Mask invalid values and build PixelData array
-			UINT16* maskedPDepth = (UINT16*)malloc(outDepthBufferCount * sizeof(UINT16));
-			Concurrency::parallel_for(size_t(0), outDepthBufferCount, [&](size_t i) {
-				if (pDepth[i] >= AHAT_INVALID_VALUE) {
-					maskedPDepth[i] = 0;
-				}
-				else {
-					maskedPDepth[i] = pDepth[i];
-				}
-				});
-
-			const Platform::Array<UINT16>^ pixelData = ref new Platform::Array<UINT16>(
-				maskedPDepth,
-				(UINT)outDepthBufferCount);
-
-			free(maskedPDepth);
-
-			DepthSensorFrame^ depthFrame = ref new DepthSensorFrame(pixelData);
-			depthFrame->Width = handle->m_pResolution.Width;
-			depthFrame->Height = handle->m_pResolution.Height;
-			depthFrame->Stride = handle->m_pResolution.Stride;
-			depthFrame->BitsPerPixel = handle->m_pResolution.BitsPerPixel;
-			depthFrame->BytesPerPixel = handle->m_pResolution.BytesPerPixel;
-
-
-
-			ResearchModeSensorTimestamp timestamp;
-			winrt::check_hresult(pSensorFrame->GetTimeStamp(&timestamp));
-			winrt::Windows::Perception::PerceptionTimestamp locTimestamp =
-				winrt::Windows::Perception::PerceptionTimestampHelper::FromSystemRelativeTargetTime(
-					HundredsOfNanoseconds(checkAndConvertUnsigned(timestamp.HostTicks)));
-			auto location = handle->m_pLocator.TryLocateAtTimestamp(
-				locTimestamp,
-				handle->m_pFrameOfReference.CoordinateSystem());
-
-			// Get cam extrinsics if they haven't been obtained already
-			if (!handle->m_pCamViewTransformObtained) {
-				IResearchModeCameraSensor* pCameraSensor;
-				handle->m_pAHATSensor->QueryInterface(IID_PPV_ARGS(&pCameraSensor));
-				DirectX::XMFLOAT4X4 DXcamViewTransform;
-				pCameraSensor->GetCameraExtrinsicsMatrix(&DXcamViewTransform);
-
-
-				Windows::Foundation::Numerics::float4x4 camViewTransform(
-					DXcamViewTransform.m[0][0], DXcamViewTransform.m[1][0], DXcamViewTransform.m[2][0], DXcamViewTransform.m[3][0],
-					DXcamViewTransform.m[0][1], DXcamViewTransform.m[1][1], DXcamViewTransform.m[2][1], DXcamViewTransform.m[3][1],
-					DXcamViewTransform.m[0][2], DXcamViewTransform.m[1][2], DXcamViewTransform.m[2][2], DXcamViewTransform.m[3][2],
-					DXcamViewTransform.m[0][3], DXcamViewTransform.m[1][3], DXcamViewTransform.m[2][3], DXcamViewTransform.m[3][3]
-				);
-
-				handle->m_pCamExtrinsics = camViewTransform;
-				Windows::Foundation::Numerics::invert(handle->m_pCamExtrinsics, &handle->m_pCamExtrinsicsInv);
-				handle->m_pCamViewTransformObtained = true;
-			}
-
-
-			// Generate depth-to-world transform matrix
-			Windows::Foundation::Numerics::float4x4 rig2world;
-			if (!location) {
-				rig2world = Windows::Foundation::Numerics::make_float4x4_from_quaternion(handle->m_pPrevRotation)
-					* Windows::Foundation::Numerics::make_float4x4_translation(handle->m_pPrevPosition);
-			}
-			else {
-
-				Windows::Foundation::Numerics::quaternion wfOrientation(location.Orientation().x, location.Orientation().y, location.Orientation().z, location.Orientation().w);
-				Windows::Foundation::Numerics::float3 wfPosition(location.Position().x, location.Position().y, location.Position().z);
-				//Windows::Foundation::Numerics::quaternion wfOrientation = orientation;
-				//Windows::Foundation::Numerics::float3 wfPosition = position;
-				handle->m_pPrevRotation = wfOrientation;
-				handle->m_pPrevPosition = wfPosition;
-				rig2world = Windows::Foundation::Numerics::make_float4x4_from_quaternion(wfOrientation)
-					* Windows::Foundation::Numerics::make_float4x4_translation(wfPosition);
-			}
-			depthFrame->FrameToWorldTransform = Windows::Foundation::Numerics::transpose(rig2world) * handle->m_pCamExtrinsicsInv;
-			std::lock_guard<std::mutex> guard(handle->m_depthSensorFrameMutex);
-			handle->m_latestSensorFrame = depthFrame;
-			SetEvent(frameObtained);
-		}
-	}
-	*/
-
-	/*
-	DepthSensorFrame^ ShortThrowDepthCameraReader::GetLatestSensorFrame() {
-		WaitForSingleObject(frameObtained, INFINITE);
-		ResetEvent(frameObtained);
-		std::lock_guard<std::mutex> guard(m_depthSensorFrameMutex);
-		return m_latestSensorFrame;
-	}
-	*/
-
     // Get latest Gray16 frame data from AHAT (short) depth sensor
-	
     DepthSensorFrame^ ShortThrowDepthCameraReader::GetLatestSensorFrame() {
 
 		IResearchModeSensorFrame* pSensorFrame = nullptr;
@@ -518,8 +401,102 @@ namespace HL2SensorAccess
 		return m_latestSensorFrameAsPointCloud;
     }
 
+
+
+	void ShortThrowDepthCameraReader::GetLatestSensorFrames() {
+		OutputDebugString(L"Getting buffers.\n");
+		IResearchModeSensorFrame* pSensorFrameR;
+		IResearchModeSensorFrame* pSensorFrameL;
+		HRESULT hrR = S_OK;
+		HRESULT hrL = S_OK;
+		hrR = m_pRFCameraSensor->GetNextBuffer(&pSensorFrameR);
+		hrL = m_pLFCameraSensor->GetNextBuffer(&pSensorFrameL);
+		OutputDebugString(L"Updating member frame variables.\n");
+
+		// Update frame if new one available otherwise set to nullptr
+		if (SUCCEEDED(hrR) && SUCCEEDED(hrL)) {
+
+			OutputDebugString(L"Lock frame mutex.\n");
+			std::lock_guard<std::mutex> guard(m_sensorFrameMutex);
+			OutputDebugString(L"Release left frame.\n");
+			if (m_pSensorFrameLeft) {
+				m_pSensorFrameLeft->Release();
+			}
+			OutputDebugString(L"Release right frame.\n");
+			if (m_pSensorFrameRight) {
+				m_pSensorFrameRight->Release();
+			}
+			OutputDebugString(L"Reassign frames.\n");
+			m_pSensorFrameLeft = pSensorFrameL;
+			m_pSensorFrameRight = pSensorFrameR;
+			OutputDebugString(L"Complete.\n");
+		}
+	}
+
+	// Only working with Right frame for now to see if that's enough
+	PVFrame^ ShortThrowDepthCameraReader::ProcessFramesWithAruco() {
+		if (m_pSensorFrameRight && m_pSensorFrameLeft) {
+			OutputDebugString(L"Processing VLC frames with Aruco...\n");
+			HRESULT hr = S_OK;
+			ResearchModeSensorResolution resolution;
+			size_t outBufferCount = 0;
+			const BYTE* pImage = nullptr;
+			IResearchModeSensorVLCFrame* pVLCFrameR = nullptr;
+			OutputDebugString(L"Getting resolution...\n");
+			m_pSensorFrameRight->GetResolution(&resolution);
+			m_pSensorFrameRight->QueryInterface(IID_PPV_ARGS(&pVLCFrameR));
+
+			if (SUCCEEDED(hr))
+			{
+				OutputDebugString(L"Getting right frame buffer...\n");
+				HRESULT buf_hr = pVLCFrameR->GetBuffer(&pImage, &outBufferCount);
+
+				m_pCorners.clear();
+				m_pIds.clear();
+
+				if (SUCCEEDED(buf_hr)) {
+					OutputDebugString(L"Creating processed cv::Mat...\n");
+					cv::Mat processed(resolution.Height, resolution.Width, CV_8U, (void*)pImage);
+					wchar_t dim_buf[256];
+					swprintf(dim_buf, 256, L"%d x %d - %d Mat dimensions.\n", (int)resolution.Height, (int)resolution.Width, (int)outBufferCount);
+					OutputDebugString(dim_buf);
+					OutputDebugString(L"Detecting markers...\n");
+					cv::aruco::detectMarkers(processed, m_pArucoDictionary, m_pCorners, m_pIds, m_pDetectorParams);
+					OutputDebugString(L"Complete.\n");
+				}
+				else {
+					OutputDebugString(L"Failed to get image buffer.\n");
+				}
+			}
+
+			if (pVLCFrameR)
+			{
+				OutputDebugString(L"Releasing frame...\n");
+				pVLCFrameR->Release();
+			}
+
+			OutputDebugString(L"Assembling image data...\n");
+			BYTE* unityImageData = (BYTE*)malloc(outBufferCount);
+			for (int i = 0; i < outBufferCount; i++) {
+				unityImageData[i] = pImage[i];
+			}
+			const Platform::Array<BYTE>^ imageData = ref new Platform::Array<BYTE>(unityImageData, outBufferCount);
+			free(unityImageData);
+			OutputDebugString(L"Complete.\n");
+			return ref new PVFrame(imageData);
+		}
+		else {
+			OutputDebugString(L"VLC frames not obtained.\n");
+			return nullptr;
+		}
+	}
+
+	Platform::Array<int>^ ShortThrowDepthCameraReader::GetVisibleMarkers() {
+		return ref new Platform::Array<int>(m_pIds.data(), (UINT)m_pIds.size());
+	}
+
     // Initialize sensor reader before you start collecting frames
-    void ShortThrowDepthCameraReader::InitializeDepthSensor() {
+    void ShortThrowDepthCameraReader::InitializeDepthSensorAndFrontCams() {
 		//OutputDebugString(L"Initializing sensor...\n");
 		size_t sensorCount = 0;
 		camConsentGiven = CreateEvent(nullptr, true, false, nullptr);
@@ -551,30 +528,49 @@ namespace HL2SensorAccess
 
 		m_pSensorDevice->GetSensorDescriptors(m_sensorDescriptors.data(), m_sensorDescriptors.size(), &sensorCount);
 
-		//_RPT1(0, "%d Sensor descriptors found.\n", m_sensorDescriptors.size());
+		_RPT1(0, "%d Sensor descriptors found.\n", m_sensorDescriptors.size());
 		for (auto& sensorDescriptor : m_sensorDescriptors)
 		{
+			IResearchModeCameraSensor* pCameraSensor = nullptr;
 			//_RPT1(0, "Descriptor %d\n", sensorDescriptor.sensorType);
 			if (sensorDescriptor.sensorType == m_pSensorType)
 			{
-				OutputDebugString(L"DEPTH_AHAT Sensor Found.\n");
+				OutputDebugString(L"DEPTH Sensor Found.\n");
 				winrt::check_hresult(m_pSensorDevice->GetSensor(sensorDescriptor.sensorType, &m_pAHATSensor));
 				m_pAHATSensor->AddRef();
-				break;
+				continue;
+			}
+
+			if (sensorDescriptor.sensorType == LEFT_FRONT)
+			{
+				OutputDebugString(L"LEFT_FRONT Sensor Found.\n");
+				winrt::check_hresult(m_pSensorDevice->GetSensor(sensorDescriptor.sensorType, &m_pLFCameraSensor));
+				m_pLFCameraSensor->AddRef();
+				continue;
+			}
+
+			if (sensorDescriptor.sensorType == RIGHT_FRONT)
+			{
+				OutputDebugString(L"RIGHT_FRONT Sensor Found.\n");
+				winrt::check_hresult(m_pSensorDevice->GetSensor(sensorDescriptor.sensorType, &m_pRFCameraSensor));
+				m_pRFCameraSensor->AddRef();
+				continue;
 			}
 		}
 
 		// Open stream
-		
 		HRESULT hr = m_pAHATSensor->OpenStream();
-		if (FAILED(hr)) {
+		HRESULT hrR = m_pRFCameraSensor->OpenStream();
+		HRESULT hrL = m_pLFCameraSensor->OpenStream();
+		if (FAILED(hrR) || FAILED(hrL) || FAILED(hr)) {
 			m_pAHATSensor->Release();
+			m_pRFCameraSensor->Release();
+			m_pLFCameraSensor->Release();
 			m_pAHATSensor = nullptr;
-			//OutputDebugString(L"SENSOR INITIALIZATION FAILED\n");
+			m_pRFCameraSensor = nullptr;
+			m_pLFCameraSensor = nullptr;
+			OutputDebugString(L"Front cam stream opening failed");
 		}
-		//OutputDebugString(L"Sensor initialized.\n");
-		
-		//m_pCameraUpdateThread = new std::thread(CameraUpdateThread, this);
 	}
 
 	void ShortThrowDepthCameraReader::CamAccessOnComplete(ResearchModeSensorConsent consent) {

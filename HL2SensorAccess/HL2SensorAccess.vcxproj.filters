@@ -8,6 +8,9 @@
     <Filter Include="Utils">
       <UniqueIdentifier>{40539f16-f5c0-4e2c-ad93-37d4e7591f39}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ArUco Detection">
+      <UniqueIdentifier>{1e95e2ca-18cf-4471-a8ee-794b4c884ffa}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="DepthSensorFrame.cpp" />
@@ -16,6 +19,9 @@
     <ClCompile Include="ShortThrowDepthCameraReader.cpp" />
     <ClCompile Include="TimeConverter.cpp">
       <Filter>Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="PVFrame.cpp">
+      <Filter>ArUco Detection</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -27,5 +33,11 @@
     <ClInclude Include="TimeConverter.h">
       <Filter>Utils</Filter>
     </ClInclude>
+    <ClInclude Include="PVFrame.h">
+      <Filter>ArUco Detection</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>

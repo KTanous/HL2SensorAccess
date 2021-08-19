@@ -14,6 +14,7 @@
 
 #include "ResearchModeApi.h"
 #include "TimeConverter.h"
+#include "PVFrame.h"
 #include "DepthSensorFrame.h"
 #include "DepthSensorPointCloud.h"
 #include "ShortThrowDepthCameraReader.h"

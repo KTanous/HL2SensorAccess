@@ -41,6 +41,7 @@
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">Create</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">Create</PrecompiledHeader>
     </ClCompile>
+    <ClCompile Include="PVFrame.cpp" />
     <ClCompile Include="ShortThrowDepthCameraReader.cpp" />
     <ClCompile Include="TimeConverter.cpp" />
   </ItemGroup>
@@ -48,9 +49,13 @@
     <ClInclude Include="DepthSensorFrame.h" />
     <ClInclude Include="DepthSensorPointCloud.h" />
     <ClInclude Include="pch.h" />
+    <ClInclude Include="PVFrame.h" />
     <ClInclude Include="ResearchModeApi.h" />
     <ClInclude Include="ShortThrowDepthCameraReader.h" />
     <ClInclude Include="TimeConverter.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <ProjectGuid>{502d301a-58e1-48c4-a945-1ba0bb24036e}</ProjectGuid>
@@ -155,6 +160,8 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM64'">
     <GenerateManifest>false</GenerateManifest>
+    <IncludePath>$(VC_IncludePath);$(WindowsSDK_IncludePath)</IncludePath>
+    <LibraryPath>$(VC_LibraryPath_ARM64);$(WindowsSDK_LibraryPath_ARM64)</LibraryPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
     <GenerateManifest>false</GenerateManifest>
@@ -236,10 +243,14 @@
       <DisableSpecificWarnings>28204</DisableSpecificWarnings>
       <LanguageStandard>stdcpp17</LanguageStandard>
       <Optimization>Disabled</Optimization>
+      <AdditionalIncludeDirectories>$(ProjectDir);$(GeneratedFilesDir);$(IntDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
       <IgnoreAllDefaultLibraries>false</IgnoreAllDefaultLibraries>
+      <AdditionalDependencies>WindowsApp.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalLibraryDirectories>
+      </AdditionalLibraryDirectories>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|ARM64'">
@@ -289,5 +300,12 @@
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
+    <Import Project="..\packages\OpenCV.HoloLens.3411.0.0\build\native\OpenCV.HoloLens.targets" Condition="Exists('..\packages\OpenCV.HoloLens.3411.0.0\build\native\OpenCV.HoloLens.targets')" />
   </ImportGroup>
+  <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
+    <PropertyGroup>
+      <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
+    </PropertyGroup>
+    <Error Condition="!Exists('..\packages\OpenCV.HoloLens.3411.0.0\build\native\OpenCV.HoloLens.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\OpenCV.HoloLens.3411.0.0\build\native\OpenCV.HoloLens.targets'))" />
+  </Target>
 </Project>
